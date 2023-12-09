@@ -41,6 +41,68 @@ $is_export$
 LANGUAGE plpgsql;
 
 select export_product(1, 49);
+--Func update vat
+-- CREATE OR REPLACE FUNCTION update_vat (id_category int, value real, start_date timestamp)
+-- RETURNS TABLE (category_id, vat, effective_date) AS $$
+-- declare
+-- 	vat_old real;
+-- BEGIN
+--    SELECT vat INTO vat_old FROM vat_history AS V WHERE V.category_id = id_category ORDER BY DES LIMIT 1;
+--     IF NOT FOUND THEN
+       
+--     ELSE 
+--         IF amount >= export_amount THEN
+--             UPDATE product SET stock = stock - export_amount where product_id = id_product;
+--             is_export := true;
+--         ELSE
+--              is_export := false;
+--             RAISE NOTICE 'Not enough';
+-- 		END IF;
+-- 	END IF;
+--    RETURN is_export;
+-- END
+-- $is_export$ 
+-- LANGUAGE plpgsql;
+
+--func create order
+CREATE OR REPLACE FUNCTION create_order (id_customer int, id_employee int, id_product int[], id_camping int, id_delivery_address int, created_by VARCHAR(50), updated_by VARCHAR(50))
+RETURNS TABLE (order_id, total_amount) AS $$
+declare
+    product_order record;
+    id_product_item int;
+    total_price decimal(10, 2);
+    price_item decimal(10,2);
+    stock_item int;
+-- 	vat_old real;
+BEGIN
+    FOR id_product_item IN id_product LOOP
+        IF NOT FOUND THEN
+            RAISE NOTICE 'Not found';
+            RETURN false;
+        ELSE
+            IF id_camping < 0 THEN
+
+                SELECT price_item, stock_item INTO price, stock FROM product AS p WHERE p.product_id = id_product LIMIT 1;
+            ELSE
+                SELECT price_item, stock_item INTO price, stock FROM product AS p WHERE p.product_id = id_product LIMIT 1;
+            IF stock_item > 1 THEN -- amount product
+                total_price := total_price + price_item;
+            ELSE 
+                RAISE NOTICE 'Not enough';
+                RETURN false;
+            END IF;
+        END IF;
+    END LOOP;
+    INSERT INTO public.orders(
+	order_date, customer_id, employee_id, total_amount, camping_id, delivery_address_id, created_by, updated_by)
+	VALUES (CURRENT_TIMESTAMP, id_customer, id_employee, id_camping, id_delivery_address, "Admin", "Admin");
+
+   RETURN true;
+END
+$$ 
+LANGUAGE plpgsql;
+
+
 
 
 --Script xuất hoá đơn VAT
