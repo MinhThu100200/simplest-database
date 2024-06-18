@@ -37,24 +37,24 @@ services:
     networks:
       - postgres_network
 
-  dremio:
-    container_name: dremio
-    image: dremio/dremio-oss:$DREMIO_IMAGE_VERSION
-    volumes:
-      - dremio_data:/opt/dremio/data
-    ports:
-      - "9047:9047"
-      - "31010:31010"
-      - "32010:32010"
-      - "45678:45678"
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
-    networks:
-      - postgres_network
+  # dremio:
+  #   container_name: dremio
+  #   image: dremio/dremio-oss:$DREMIO_IMAGE_VERSION
+  #   volumes:
+  #     - dremio_data:/opt/dremio/data
+  #   ports:
+  #     - "9047:9047"
+  #     - "31010:31010"
+  #     - "32010:32010"
+  #     - "45678:45678"
+  #   deploy:
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #       window: 120s
+  #   networks:
+  #     - postgres_network
 
 volumes:
   postgres_data:

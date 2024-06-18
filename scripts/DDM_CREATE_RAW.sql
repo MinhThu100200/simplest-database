@@ -1,192 +1,380 @@
-CREATE TABLE customer (
-    id SERIAL PRIMARY KEY NOT NULL,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    email VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) UNIQUE NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status BOOLEAN DEFAULT true
-);
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE category (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name VARCHAR(50) NOT NULL,
-    status BOOLEAN DEFAULT true,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE product (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    price DECIMAL(10, 2) NOT NULL,
-    stock INT NOT NULL,
-    status BOOLEAN DEFAULT true,
-    category_id INT NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES category(id)
-);
-
-CREATE TABLE employee (
-    id SERIAL PRIMARY KEY NOT NULL,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    position VARCHAR(50) NOT NULL,
-    access_privileges VARCHAR(100) NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status BOOLEAN DEFAULT true
-);
-
-CREATE TABLE price_history (
-    product_id SERIAL NOT NULL,
-    price DECIMAL(10, 2) NOT NULL,
-    effective_date DATE DEFAULT CURRENT_TIMESTAMP,
-    change_reason TEXT,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (product_id, effective_date, price),
-    CONSTRAINT fk_price_history_product FOREIGN KEY (product_id) REFERENCES product(id)
-);
-
-CREATE TABLE delivery_address (
-    id SERIAL PRIMARY KEY NOT NULL,
-    customer_id INT NOT NULL,
-    street VARCHAR(100) NOT NULL,
-    city VARCHAR(50) NOT NULL,
-    State VARCHAR(50) NOT NULL,
-    postal_code VARCHAR(20) NOT NULL,
-    country VARCHAR(50) NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_delivery_address_customer FOREIGN KEY (customer_id) REFERENCES customer(id)
-);
-
-CREATE TABLE vat_history (
-    category_id INT NOT NULL,
-    vat REAL NOT NULL,
-    effective_date DATE DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (category_id, effective_date, vat),
-    CONSTRAINT fk_vat_history_category FOREIGN KEY (category_id) REFERENCES category(id)
-);
-
-CREATE TABLE type_discount (
-    id SERIAL PRIMARY KEY NOT NULL,
-    value_type VARCHAR(50) NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE strategy (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    effective_date DATE DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(50) NOT NULL,
-    expired_date TIMESTAMP NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE camping (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    camping_value REAL DEFAULT 0,
-    expired_date TIMESTAMP NOT NULL,
-    camping_condition_bill DECIMAL(10, 2) DEFAULT 0,
-    amount INT NOT NULL,
-    strategy_id INT NOT NULL,
-    type_discount_id INT NOT NULL,
-    effective_date DATE DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_camping_type_discount FOREIGN KEY (type_discount_id) REFERENCES type_discount(id)
-);
-
-CREATE TABLE strategy_camping (
-    strategy_id INT REFERENCES strategy(id) NOT NULL,
-    camping_id INT REFERENCES camping(id) NOT NULL,
-    PRIMARY KEY (strategy_id, camping_id)
-);
-
-CREATE TABLE product_camping (
-    product_id INT REFERENCES product(id) NOT NULL,
-    camping_id INT REFERENCES camping(id) NOT NULL,
-    PRIMARY KEY (product_id, camping_id)
-);
-
-CREATE TABLE orders (
-    id SERIAL PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS fact_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_date DATE DEFAULT CURRENT_TIMESTAMP,
-    customer_id INT NOT NULL,
-    employee_id INT NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
-    camping_id INT DEFAULT -1,
-    delivery_address_id INT NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customer(id),
-    CONSTRAINT fk_orders_employee FOREIGN KEY (employee_id) REFERENCES employee(id),
-    CONSTRAINT fk_orders_delivery_address FOREIGN KEY (delivery_address_id) REFERENCES delivery_address(id)
+    customer_id UUID,
+    employee_id UUID,
+    total_amount DECIMAL(10, 2),
+    discount_amount DECIMAL(10, 2),
+    delivery_address_id VARCHAR(50),
+    delivery_address VARCHAR(500),
+    delivery_method VARCHAR(100),
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 );
 
-CREATE TABLE order_camping (
-    camping_id INT REFERENCES camping(id) NOT NULL,
-    order_id INT REFERENCES orders(id) NOT NULL,
-    PRIMARY KEY (order_id, camping_id)
-);
-
-CREATE TABLE order_details (
-    id SERIAL PRIMARY KEY NOT NULL,
-    order_id INT NOT NULL,
-    product_id INT NOT NULL,
-    quantity INT NOT NULL,
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
+CREATE TABLE IF NOT EXISTS dim_order_details (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID,
+    product_id UUID,
+    product_name text,
+    product_image VARCHAR(300),
+    quantity INT,
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    price_product_order DECIMAL(10, 2) NOT NULL,
-    CONSTRAINT fk_order_details_order FOREIGN KEY (order_id) REFERENCES orders(id),
-    CONSTRAINT fk_order_details_product FOREIGN KEY (product_id) REFERENCES product(id)
+    price_sale DECIMAL(10, 2) NOT NULL,
+    discount_amount DECIMAL(10, 2) NOT NULL,
+    unit VARCHAR(10)
 );
 
-CREATE TABLE payment (
-    id SERIAL PRIMARY KEY NOT NULL,
-    order_id INT NOT NULL,
-    customer_id INT NOT NULL,
-    amount DECIMAL(10, 2) NOT NULL,
-    payment_date DATE DEFAULT CURRENT_TIMESTAMP,
-    payment_method VARCHAR(50) DEFAULT 'Cash',
-    created_by VARCHAR(50) NOT NULL,
-    updated_by VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders(id),
-    CONSTRAINT fk_payment_customer FOREIGN KEY (customer_id) REFERENCES customer(id)
+CREATE TABLE IF NOT EXISTS dim_customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    status BOOLEAN
 );
+
+CREATE TABLE IF NOT EXISTS dim_employees (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    username VARCHAR(50),
+    password VARCHAR(50),
+    position VARCHAR(50),
+    phone VARCHAR(20),
+    access_privileges VARCHAR(100),
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    status BOOLEAN
+);
+
+CREATE TABLE IF NOT EXISTS dim_categories(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(500),
+    information text,
+    images VARCHAR(300),
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    status BOOLEAN
+);
+
+CREATE TABLE IF NOT EXISTS fact_products(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(500),
+    description text,
+    information text,
+    images text [],
+    stock INT,
+    price NUMERIC(10, 2),
+    created_by VARCHAR(50),
+    updated_by VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    status BOOLEAN,
+    category_id UUID
+);
+
+-- CATEGORY TABLE CONSTRAINT
+ALTER TABLE
+    dim_categories
+ALTER COLUMN
+    name
+SET
+    NOT NULL,
+ALTER COLUMN
+    information
+SET
+    NOT NULL,
+ALTER COLUMN
+    images
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    status
+SET
+    DEFAULT true;
+
+-- PRODUCTS TABLE CONSTRAINT
+ALTER TABLE
+    fact_products
+ALTER COLUMN
+    name
+SET
+    NOT NULL,
+ALTER COLUMN
+    information
+SET
+    NOT NULL,
+ALTER COLUMN
+    description
+SET
+    NOT NULL,
+ALTER COLUMN
+    images
+SET
+    NOT NULL,
+ALTER COLUMN
+    stock
+SET
+    NOT NULL,
+ALTER COLUMN
+    price
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    status
+SET
+    DEFAULT true,
+ADD
+    CONSTRAINT check_stock CHECK (stock >= 0),
+ADD
+    CONSTRAINT check_price CHECK (price >= 0),
+ADD
+    CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES dim_categories(id);
+
+-- ORDERS TABLE CONSTRAINT
+ALTER TABLE
+    fact_orders
+ALTER COLUMN
+    customer_id
+SET
+    NOT NULL,
+ALTER COLUMN
+    employee_id
+SET
+    NOT NULL,
+ALTER COLUMN
+    total_amount
+SET
+    NOT NULL,
+ALTER COLUMN
+    discount_amount
+SET
+    NOT NULL,
+ALTER COLUMN
+    delivery_method
+SET
+    NOT NULL,
+ALTER COLUMN
+    delivery_address
+SET
+    NOT NULL,
+ALTER COLUMN
+    delivery_address_id
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    order_date
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ADD
+    CONSTRAINT fk_order_employee FOREIGN KEY (employee_id) REFERENCES dim_employees (id),
+ADD
+    CONSTRAINT fk_order_customer FOREIGN KEY (customer_id) REFERENCES dim_customers (id);
+
+-- ORDER_DETAIL TABLE CONSTRAINT
+ALTER TABLE
+    dim_order_details
+ALTER COLUMN
+    order_id
+SET
+    NOT NULL,
+ALTER COLUMN
+    product_id
+SET
+    NOT NULL,
+ALTER COLUMN
+    product_name
+SET
+    NOT NULL,
+ALTER COLUMN
+    product_image
+SET
+    NOT NULL,
+ALTER COLUMN
+    quantity
+SET
+    NOT NULL,
+ALTER COLUMN
+    price_sale
+SET
+    NOT NULL,
+ALTER COLUMN
+    discount_amount
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    unit
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ADD
+    CONSTRAINT check_quantity CHECK(quantity > 0),
+ADD
+    CONSTRAINT fk_order_detail_order FOREIGN KEY (order_id) REFERENCES fact_orders (id);
+
+-- CUSTOMERS TABLE CONSTRAINT
+ALTER TABLE
+    dim_customers
+ALTER COLUMN
+    first_name
+SET
+    NOT NULL,
+ALTER COLUMN
+    last_name
+SET
+    NOT NULL,
+ALTER COLUMN
+    phone
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    status
+SET
+    DEFAULT true,
+ADD
+    CONSTRAINT customer_phone_unq UNIQUE(phone);
+
+-- EMPLOYEES TABLE CONSTRAINT
+ALTER TABLE
+    dim_employees
+ALTER COLUMN
+    first_name
+SET
+    NOT NULL,
+ALTER COLUMN
+    last_name
+SET
+    NOT NULL,
+ALTER COLUMN
+    phone
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    updated_by
+SET
+    NOT NULL,
+ALTER COLUMN
+    access_privileges
+SET
+    NOT NULL,
+ALTER COLUMN
+    username
+SET
+    NOT NULL,
+ALTER COLUMN
+    password
+SET
+    NOT NULL,
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    updated_at
+SET
+    DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN
+    status
+SET
+    DEFAULT true,
+ADD
+    CONSTRAINT employee_phone_unq UNIQUE(phone);
